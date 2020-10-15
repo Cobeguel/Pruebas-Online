@@ -42,7 +42,7 @@ class MinimalIntercom:
 
     DESTINATION_PORT = 7676
 
-    DESTINATION_IP = "192.168.1.37"
+    DESTINATION_IP = "localhost" #"192.168.1.37"
 
     MAX_PAYLOAD_BYTES = 32768
 
@@ -59,6 +59,8 @@ class MinimalIntercom:
         self.source_port = args.source_port
         self.destination_IP = args.destination_IP
         self.destination_port = args.destination_port
+
+
 
         # Endpoints pair decalration
         self.sender_endpoint = (self.destination_IP, self.destination_port)
@@ -77,11 +79,14 @@ class MinimalIntercom:
             self.data_type = np.int16
         else:
             self.data_type = "int16"
-
+        self.zero_chunk = self.generate_zero_chunk()
         # Print parameters
 
     def __del__(self):
         self.receiver_socket.close()
+
+    def generate_zero_chunk(self):
+        return np.zeros((self.chunk_size, self.channels), self.data_type)
 
     def send(self, data):
         self.sender_socket.sendto(data, self.sender_endpoint)
@@ -94,8 +99,14 @@ class MinimalIntercom:
     def callback(self, indata, outdata, frames, time, status):
         if status:
             print(status)
+
         self.send(indata)
+
         data = self.receive()
+
+        if not data:
+            data = self.generate_zero_chunk()
+
         data = np.frombuffer(data, np.int16).reshape(self.chunk_size, self.channels)
 
         outdata[:] = data
