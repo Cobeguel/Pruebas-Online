@@ -32,7 +32,7 @@ except ModuleNotFoundError:
 
 class MinimalIntercom:
 
-    CHANNELS = 1
+    CHANNELS = 2
 
     SAMPLE_RATE = 44100
 
@@ -42,7 +42,7 @@ class MinimalIntercom:
 
     DESTINATION_PORT = 7676
 
-    DESTINATION_IP = "localhost" #"192.168.1.37"
+    DESTINATION_IP = "192.168.1.37" #"192.168.1.37"
 
     MAX_PAYLOAD_BYTES = 32768
 
@@ -60,7 +60,7 @@ class MinimalIntercom:
         self.destination_IP = args.destination_IP
         self.destination_port = args.destination_port
 
-
+        self.data = ""
 
         # Endpoints pair decalration
         self.sender_endpoint = (self.destination_IP, self.destination_port)
@@ -89,29 +89,27 @@ class MinimalIntercom:
         return np.zeros((self.chunk_size, self.channels), self.data_type)
 
     def send(self, data):
-        self.sender_socket.sendto(data, self.sender_endpoint)
+        self.sender_socket.sendto(data,  (self.destination_IP, self.destination_port)) #self.sender_endpoint)
 
     def receive(self):
         data, status = self.receiver_socket.recvfrom(self.MAX_PAYLOAD_BYTES)
-        return data
+
+        if not data:
+            print("NO DATA")
+            data = self.generate_zero_chunk()
+        data = np.frombuffer(data, np.int16).reshape(self.chunk_size, self.channels)
+        self.data = data
 
 
     def callback(self, indata, outdata, frames, time, status):
         if status:
             print(status)
 
+       #data = self.receive()
+
         self.send(indata)
 
-        data = self.receive()
-
-        if not data:
-            data = self.generate_zero_chunk()
-
-        data = np.frombuffer(data, np.int16).reshape(self.chunk_size, self.channels)
-
-        outdata[:] = data
-
-
+        outdata[:] = self.data
 
 
     def start(self):
@@ -121,7 +119,7 @@ class MinimalIntercom:
                            callback = self.callback):
 
                 while True:
-                    input()
+                    self.receive()
                 #   print('#' * 80)
                 #   print('press Return to quit')
                 #   print('#' * 80)
